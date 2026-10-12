@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/qml">
+        <file alias="Main.qml">qml/Main.qml</file>
+        <file alias="CameraTile.qml">qml/CameraTile.qml</file>
+        <file alias="CameraDialog.qml">qml/CameraDialog.qml</file>
+        <file alias="SettingsDialog.qml">qml/SettingsDialog.qml</file>
+        <file alias="CameraPlayer.qml">../shared/CameraPlayer.qml</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,22 @@
+[Global]
+IconName=camera-video
+Name=CamViewer
+Comment=Visualizador de câmeras
+DesktopEntry=org.camviewer.CamViewer
+
+[Event/motion]
+Name=Movimento detectado
+Comment=Uma câmera detectou movimento
+Action=Popup|Sound
+Sound=dialog-warning
+Urgency=Normal
+
+[Event/snapshot]
+Name=Captura salva
+Comment=Uma captura de tela da câmera foi salva
+Action=Popup
+
+[Event/recording]
+Name=Gravação
+Comment=Uma gravação terminou ou falhou
+Action=Popup

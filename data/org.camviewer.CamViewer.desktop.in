@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=CamViewer
+GenericName=Visualizador de câmeras
+Comment=Veja, grave e receba alertas das suas câmeras IP
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/camviewer
+Icon=camera-video
+Terminal=false
+Categories=Qt;KDE;AudioVideo;Video;Security;
+Keywords=camera;cctv;rtsp;ip;
+StartupWMClass=camviewer
+X-DBUS-ServiceName=org.camviewer.CamViewer
+X-KDE-StartupNotify=true

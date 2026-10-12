@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.camviewer.CamViewer
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/camviewer --background
