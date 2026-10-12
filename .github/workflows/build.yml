@@ -57,10 +57,20 @@ jobs:
           Copy-Item "$env:VCToolsRedistDir\x64\Microsoft.VC*.CRT\*.dll" dist\
 
       - name: Bundle FFmpeg
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # Gravação, capturas e detecção de movimento rodam o ffmpeg.exe.
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip"
-          Invoke-WebRequest $url -OutFile ffmpeg.zip
+          # Os nomes dos arquivos mudam a cada série do FFmpeg, então pega a
+          # versão estável mais nova que estiver publicada.
+          $release = Invoke-RestMethod "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest" -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN" }
+          $asset = $release.assets |
+            Where-Object { $_.name -match '^ffmpeg-n[\d.]+-latest-win64-gpl-[\d.]+\.zip$' } |
+            Sort-Object { [version]($_.name -replace '^ffmpeg-n([\d.]+)-.*', '$1') } -Descending |
+            Select-Object -First 1
+          if (-not $asset) { throw "Nenhum build do FFmpeg para Windows encontrado" }
+          Write-Host "Usando $($asset.name)"
+          Invoke-WebRequest $asset.browser_download_url -OutFile ffmpeg.zip
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
           New-Item -ItemType Directory -Force dist\ffmpeg | Out-Null
           Copy-Item (Get-ChildItem ffmpeg-tmp -Recurse -Filter ffmpeg.exe | Select-Object -First 1).FullName dist\ffmpeg\
