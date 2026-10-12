@@ -82,6 +82,19 @@ geram uma notificação com a imagem, e opcionalmente uma gravação automática
 Sensibilidade, intervalo entre alertas e duração da gravação são configuráveis.
 Cada câmera com alerta ligado mantém um `ffmpeg` rodando (~80 MB).
 
+### Mover e girar câmeras
+
+Na edição de cada câmera:
+
+- **Girar a imagem / Espelhar** — para câmeras montadas de lado ou de cabeça
+  para baixo. Vale para o app e o widget; gravações e capturas ficam como a
+  câmera envia.
+- **Câmera com movimento (PTZ via ONVIF)** — mostra setas e zoom sobre o vídeo
+  ao passar o mouse; a câmera anda enquanto o botão estiver apertado. Usa o
+  host, o usuário e a senha do endereço do vídeo, mais a porta ONVIF informada
+  (em geral 80, 8080, 8899 ou 2020 nas Tapo). O ONVIF precisa estar ativado na
+  câmera.
+
 ## Arquivos
 
 - `~/.config/camviewer/config.json` — câmeras e configurações (modo 600, pois as
@@ -95,4 +108,6 @@ Cada câmera com alerta ligado mantém um `ffmpeg` rodando (~80 MB).
 busctl --user call org.camviewer.CamViewer /CamViewer org.camviewer.CamViewer State
 busctl --user call org.camviewer.CamViewer /CamViewer org.camviewer.CamViewer Snapshot s <id>
 busctl --user call org.camviewer.CamViewer /CamViewer org.camviewer.CamViewer ToggleRecording s <id>
+busctl --user call org.camviewer.CamViewer /CamViewer org.camviewer.CamViewer PtzMove sddd -- <id> 0.5 0 0
+busctl --user call org.camviewer.CamViewer /CamViewer org.camviewer.CamViewer PtzStop s <id>
 ```

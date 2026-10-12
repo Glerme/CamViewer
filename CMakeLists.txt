@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 # O CI passa a versão da tag (-DCAMVIEWER_VERSION=1.2.3).
-set(CAMVIEWER_VERSION "0.1.0" CACHE STRING "Versão do CamViewer")
+set(CAMVIEWER_VERSION "0.2.0" CACHE STRING "Versão do CamViewer")
 project(camviewer VERSION ${CAMVIEWER_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -37,6 +37,8 @@ add_executable(camviewer WIN32
     src/manager.h
     src/motiondetector.cpp
     src/motiondetector.h
+    src/onvif.cpp
+    src/onvif.h
     src/app.qrc
 )
 

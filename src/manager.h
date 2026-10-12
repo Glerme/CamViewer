@@ -11,6 +11,7 @@
 #include <functional>
 
 class MotionDetector;
+class OnvifPtz;
 
 // Guarda as câmeras e configurações, grava, tira capturas e dispara alertas.
 // Fica vivo em segundo plano mesmo com a janela fechada; o widget do Plasma
@@ -51,6 +52,9 @@ public Q_SLOTS:
     Q_SCRIPTABLE void Snapshot(const QString &id);
     Q_SCRIPTABLE void ToggleRecording(const QString &id);
     Q_SCRIPTABLE void ShowWindow(const QString &id);
+    // Move uma câmera PTZ (velocidades de -1 a 1) até o PtzStop().
+    Q_SCRIPTABLE void PtzMove(const QString &id, double pan, double tilt, double zoom);
+    Q_SCRIPTABLE void PtzStop(const QString &id);
     Q_SCRIPTABLE void Quit();
 
 Q_SIGNALS:
@@ -60,6 +64,7 @@ Q_SIGNALS:
     void runtimeChanged();
     void settingsChanged();
     void autostartChanged();
+    void ptzFailed(const QString &id, const QString &message);
     void showWindowRequested(const QString &id);
     // Só fora do KDE: quem tem a bandeja mostra o balão.
     void notificationRequested(const QString &title, const QString &text,
@@ -74,6 +79,16 @@ private:
         bool motion = false;
         int sensitivity = 5;
         bool autoRecord = false;
+        // Só afetam a exibição; gravações e capturas ficam como a câmera envia.
+        int rotation = 0;
+        bool mirror = false;
+        bool ptz = false;
+        // 0 = descobrir sozinho.
+        int onvifPort = 0;
+        // Algumas câmeras andam ao contrário do que o padrão ONVIF define.
+        bool ptzInvertPan = false;
+        bool ptzInvertTilt = false;
+        bool ptzZoom = false;
 
         QProcess *recorder = nullptr;
         QDateTime recordingSince;
@@ -102,5 +117,6 @@ private:
     void emitRuntimeChanged();
 
     QList<Camera> m_cameras;
+    OnvifPtz *m_ptz;
     QVariantMap m_settings;
 };

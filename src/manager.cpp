@@ -1,6 +1,7 @@
 #include "manager.h"
 #include "ffmpeg.h"
 #include "motiondetector.h"
+#include "onvif.h"
 
 #ifdef CAMVIEWER_KDE
 #include <KNotification>
@@ -78,7 +79,9 @@ void finishRecorder(QProcess *recorder, int waitMs)
 
 Manager::Manager(QObject *parent)
     : QObject(parent)
+    , m_ptz(new OnvifPtz(this))
 {
+    connect(m_ptz, &OnvifPtz::failed, this, &Manager::ptzFailed);
     load();
     applyEnvironment();
     syncDetectors();
@@ -112,6 +115,13 @@ QVariantList Manager::cameras() const
             {QStringLiteral("motion"), camera.motion},
             {QStringLiteral("sensitivity"), camera.sensitivity},
             {QStringLiteral("autoRecord"), camera.autoRecord},
+            {QStringLiteral("rotation"), camera.rotation},
+            {QStringLiteral("mirror"), camera.mirror},
+            {QStringLiteral("ptz"), camera.ptz},
+            {QStringLiteral("onvifPort"), camera.onvifPort},
+            {QStringLiteral("ptzInvertPan"), camera.ptzInvertPan},
+            {QStringLiteral("ptzInvertTilt"), camera.ptzInvertTilt},
+            {QStringLiteral("ptzZoom"), camera.ptzZoom},
         };
     }
     return list;
@@ -219,6 +229,13 @@ QString Manager::saveCamera(const QVariantMap &data)
     camera->motion = data.value(QStringLiteral("motion")).toBool();
     camera->sensitivity = data.value(QStringLiteral("sensitivity"), 5).toInt();
     camera->autoRecord = data.value(QStringLiteral("autoRecord")).toBool();
+    camera->rotation = data.value(QStringLiteral("rotation")).toInt();
+    camera->mirror = data.value(QStringLiteral("mirror")).toBool();
+    camera->ptz = data.value(QStringLiteral("ptz")).toBool();
+    camera->onvifPort = data.value(QStringLiteral("onvifPort")).toInt();
+    camera->ptzInvertPan = data.value(QStringLiteral("ptzInvertPan")).toBool();
+    camera->ptzInvertTilt = data.value(QStringLiteral("ptzInvertTilt")).toBool();
+    camera->ptzZoom = data.value(QStringLiteral("ptzZoom")).toBool();
     if (camera->name.isEmpty()) {
         camera->name = tr("Câmera %1").arg(m_cameras.size());
     }
@@ -295,6 +312,32 @@ void Manager::openFolder(const QString &kind)
     QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
 }
 
+namespace {
+
+// O ONVIF usa o mesmo endereço, usuário e senha do vídeo; só a porta muda.
+OnvifPtz::Target ptzTarget(const QString &url, int port)
+{
+    const QUrl parsed(url);
+    return {parsed.host(), port, parsed.userName(QUrl::FullyDecoded), parsed.password(QUrl::FullyDecoded)};
+}
+
+}
+
+void Manager::PtzMove(const QString &id, double pan, double tilt, double zoom)
+{
+    if (const Camera *camera = find(id); camera && camera->ptz) {
+        m_ptz->move(id, ptzTarget(camera->url, camera->onvifPort),
+                    camera->ptzInvertPan ? -pan : pan, camera->ptzInvertTilt ? -tilt : tilt, zoom);
+    }
+}
+
+void Manager::PtzStop(const QString &id)
+{
+    if (const Camera *camera = find(id); camera && camera->ptz) {
+        m_ptz->stop(id, ptzTarget(camera->url, camera->onvifPort));
+    }
+}
+
 QString Manager::State() const
 {
     QJsonArray cameras;
@@ -305,6 +348,8 @@ QString Manager::State() const
             {QStringLiteral("url"), camera.url},
             {QStringLiteral("subUrl"), camera.subUrl},
             {QStringLiteral("motion"), camera.motion},
+            {QStringLiteral("rotation"), camera.rotation},
+            {QStringLiteral("mirror"), camera.mirror},
             {QStringLiteral("recording"), camera.recorder != nullptr},
             {QStringLiteral("since"), camera.recorder ? camera.recordingSince.toMSecsSinceEpoch() : 0},
         });
@@ -383,6 +428,13 @@ void Manager::load()
         camera.motion = object.value(QLatin1String("motion")).toBool();
         camera.sensitivity = object.value(QLatin1String("sensitivity")).toInt(5);
         camera.autoRecord = object.value(QLatin1String("autoRecord")).toBool();
+        camera.rotation = object.value(QLatin1String("rotation")).toInt();
+        camera.mirror = object.value(QLatin1String("mirror")).toBool();
+        camera.ptz = object.value(QLatin1String("ptz")).toBool();
+        camera.onvifPort = object.value(QLatin1String("onvifPort")).toInt();
+        camera.ptzInvertPan = object.value(QLatin1String("ptzInvertPan")).toBool();
+        camera.ptzInvertTilt = object.value(QLatin1String("ptzInvertTilt")).toBool();
+        camera.ptzZoom = object.value(QLatin1String("ptzZoom")).toBool();
         if (!camera.id.isEmpty()) {
             m_cameras.append(camera);
         }

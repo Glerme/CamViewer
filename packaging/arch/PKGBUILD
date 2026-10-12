@@ -4,7 +4,7 @@
 #   cd packaging/arch && makepkg -si
 
 pkgname=camviewer
-pkgver=${CAMVIEWER_VERSION:-0.1.0}
+pkgver=${CAMVIEWER_VERSION:-0.2.0}
 pkgrel=1
 pkgdesc="Visualizador de câmeras IP para o KDE Plasma, com gravação, capturas e alertas"
 arch=('x86_64')
@@ -22,6 +22,8 @@ depends=(
     'qt6-svg'
 )
 makedepends=('cmake')
+# Sem o pacote -debug separado: ele só confundiria quem baixa a release.
+options=('!debug')
 optdepends=('plasma-workspace: widget para a área de trabalho e o painel')
 
 build() {

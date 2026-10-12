@@ -15,6 +15,9 @@ Item {
     property bool muted: true
     property bool lowLatency: true
     property int fillMode: VideoOutput.PreserveAspectFit
+    // Para câmeras instaladas de lado ou de cabeça para baixo.
+    property int videoRotation: 0
+    property bool mirror: false
 
     readonly property var videoSink: loader.item ? loader.item.sink : null
     readonly property bool playing: loader.item ? loader.item.hasVideo : false
@@ -88,6 +91,11 @@ Item {
 
                 anchors.fill: parent
                 fillMode: root.fillMode
+                orientation: root.videoRotation
+                transform: Scale {
+                    origin.x: output.width / 2
+                    xScale: root.mirror ? -1 : 1
+                }
             }
 
             Connections {

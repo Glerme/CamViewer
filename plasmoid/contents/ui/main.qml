@@ -122,6 +122,8 @@ PlasmoidItem {
             active: root.streamActive
             muted: Plasmoid.configuration.muted
             lowLatency: backend.lowLatency
+            videoRotation: root.camera?.rotation ?? 0
+            mirror: root.camera?.mirror ?? false
         }
 
         PlasmaExtras.PlaceholderMessage {

@@ -10,10 +10,7 @@ QQC2.ApplicationWindow {
     property string focusedCameraId
 
     readonly property var cameras: manager.cameras
-    readonly property var visibleCameras: {
-        const focused = cameras.filter(camera => camera.id === focusedCameraId);
-        return focused.length > 0 ? focused : cameras;
-    }
+    readonly property bool hasFocusedCamera: cameras.some(camera => camera.id === focusedCameraId)
     // Janela minimizada (ou, se configurado, sem foco) não mantém streams.
     readonly property bool streamsActive: visibility !== Window.Minimized && visibility !== Window.Hidden
         && (!manager.settings.pauseOnUnfocus || active)
@@ -32,7 +29,7 @@ QQC2.ApplicationWindow {
             QQC2.ToolButton {
                 icon.name: "go-previous"
                 text: "Todas as câmeras"
-                visible: window.focusedCameraId !== "" && window.cameras.length > 1
+                visible: window.hasFocusedCamera && window.cameras.length > 1
                 onClicked: window.focusedCameraId = ""
             }
             QQC2.ToolButton {
@@ -71,12 +68,14 @@ QQC2.ApplicationWindow {
 
         anchors.fill: parent
         anchors.margins: 2
-        columns: Math.max(1, Math.ceil(Math.sqrt(window.visibleCameras.length)))
+        columns: window.hasFocusedCamera ? 1 : Math.max(1, Math.ceil(Math.sqrt(window.cameras.length)))
         rowSpacing: 2
         columnSpacing: 2
 
+        // Todas as câmeras continuam existindo; destacar uma só esconde as
+        // outras, em vez de recriar (e reconectar) tudo.
         Repeater {
-            model: window.visibleCameras
+            model: window.cameras
 
             CameraTile {
                 required property var modelData
@@ -87,6 +86,7 @@ QQC2.ApplicationWindow {
                 Layout.preferredWidth: 1
                 Layout.preferredHeight: 1
 
+                visible: !window.hasFocusedCamera || focused
                 camera: modelData
                 streamActive: window.streamsActive
                 focused: window.focusedCameraId === modelData.id
@@ -129,7 +129,7 @@ QQC2.ApplicationWindow {
 
     Shortcut {
         sequence: "Esc"
-        enabled: window.focusedCameraId !== ""
+        enabled: window.hasFocusedCamera
         onActivated: window.focusedCameraId = ""
     }
     Shortcut {

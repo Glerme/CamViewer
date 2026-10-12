@@ -8,6 +8,7 @@ QQC2.Dialog {
     title: "Configurações"
     modal: true
     width: Math.min(560, parent.width - 40)
+    height: Math.min(implicitHeight, parent.height - 40)
     standardButtons: QQC2.Dialog.Save | QQC2.Dialog.Cancel
 
     onAboutToShow: {
@@ -32,77 +33,88 @@ QQC2.Dialog {
         manager.autostart = autostartBox.checked;
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 8
+    contentItem: QQC2.ScrollView {
+        id: scroll
 
-        QQC2.Label {
-            text: "Pasta das gravações"
-        }
-        QQC2.TextField {
-            id: recordDirField
+        contentWidth: availableWidth
+        clip: true
+        leftPadding: 12
+        rightPadding: 16
+        topPadding: 8
+        bottomPadding: 8
 
-            Layout.fillWidth: true
-        }
-
-        QQC2.Label {
-            text: "Pasta das capturas"
-        }
-        QQC2.TextField {
-            id: snapshotDirField
-
-            Layout.fillWidth: true
-        }
-
-        RowLayout {
-            Layout.topMargin: 8
+        ColumnLayout {
+            width: scroll.availableWidth
+            spacing: 8
 
             QQC2.Label {
-                Layout.fillWidth: true
-                text: "Intervalo mínimo entre alertas da mesma câmera (s)"
+                text: "Pasta das gravações"
             }
-            QQC2.SpinBox {
-                id: cooldownSpin
+            QQC2.TextField {
+                id: recordDirField
 
-                from: 5
-                to: 3600
-                stepSize: 5
+                Layout.fillWidth: true
             }
-        }
-        RowLayout {
+
             QQC2.Label {
+                text: "Pasta das capturas"
+            }
+            QQC2.TextField {
+                id: snapshotDirField
+
                 Layout.fillWidth: true
-                text: "Duração da gravação automática por alerta (s)"
             }
-            QQC2.SpinBox {
-                id: autoRecordSpin
 
-                from: 5
-                to: 3600
-                stepSize: 5
+            RowLayout {
+                Layout.topMargin: 8
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: "Intervalo mínimo entre alertas da mesma câmera (s)"
+                }
+                QQC2.SpinBox {
+                    id: cooldownSpin
+
+                    from: 5
+                    to: 3600
+                    stepSize: 5
+                }
             }
-        }
+            RowLayout {
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: "Duração da gravação automática por alerta (s)"
+                }
+                QQC2.SpinBox {
+                    id: autoRecordSpin
 
-        QQC2.CheckBox {
-            id: autostartBox
+                    from: 5
+                    to: 3600
+                    stepSize: 5
+                }
+            }
 
-            Layout.topMargin: 8
-            text: "Iniciar em segundo plano ao fazer login"
-        }
-        QQC2.CheckBox {
-            id: unfocusBox
+            QQC2.CheckBox {
+                id: autostartBox
 
-            text: "Pausar as câmeras quando a janela perder o foco"
-        }
-        QQC2.CheckBox {
-            id: lowLatencyBox
+                Layout.topMargin: 8
+                text: "Iniciar em segundo plano ao fazer login"
+            }
+            QQC2.CheckBox {
+                id: unfocusBox
 
-            text: "Modo de baixa latência"
-        }
-        QQC2.CheckBox {
-            id: tcpBox
+                text: "Pausar as câmeras quando a janela perder o foco"
+            }
+            QQC2.CheckBox {
+                id: lowLatencyBox
 
-            text: "Usar RTSP sobre TCP (evita imagem borrada em redes instáveis)"
+                text: "Modo de baixa latência"
+            }
+            QQC2.CheckBox {
+                id: tcpBox
+
+                text: "Usar RTSP sobre TCP (evita imagem borrada em redes instáveis)"
+            }
         }
     }
 }
