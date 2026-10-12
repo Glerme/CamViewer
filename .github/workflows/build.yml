@@ -21,6 +21,7 @@ env:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -77,10 +78,22 @@ jobs:
           Copy-Item (Get-ChildItem ffmpeg-tmp -Recurse -Filter LICENSE.txt | Select-Object -First 1).FullName dist\ffmpeg\
 
       - name: Smoke test
+        timeout-minutes: 5
+        env:
+          # Sem isto o Qt mostra a versão numa caixa de mensagem (o app não
+          # tem console) e o passo fica esperando alguém clicar em OK.
+          QT_COMMAND_LINE_PARSER_NO_GUI_MESSAGE_BOXES: 1
         run: |
-          # Falha se faltar alguma DLL: o processo não chegaria a responder.
-          $version = (cmd /c "dist\CamViewer.exe --version 2>&1 | more")
-          Write-Host $version
+          # Se faltar alguma DLL o Windows abre um diálogo de erro e o
+          # processo nunca termina; o limite de tempo transforma isso em falha.
+          $app = Start-Process dist\CamViewer.exe -ArgumentList '--version' -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-err.txt
+          $null = $app.Handle
+          if (-not $app.WaitForExit(60000)) {
+            $app.Kill()
+            throw "CamViewer.exe --version não terminou em 60 s"
+          }
+          Get-Content version.txt, version-err.txt
+          if ($app.ExitCode -ne 0) { throw "CamViewer.exe --version saiu com código $($app.ExitCode)" }
           & dist\ffmpeg\ffmpeg.exe -hide_banner -version | Select-Object -First 1
 
       - name: Build installer
