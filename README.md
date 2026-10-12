@@ -43,7 +43,7 @@ guarda os instaladores como artefatos da execução. Uma tag `vX.Y.Z` publica a
 release:
 
 ```sh
-git tag v0.3.0 && git push origin v0.3.0
+git tag v0.3.1 && git push origin v0.3.0
 ```
 
 A cada tag o CI também gera, com `packaging/release_files.py`:

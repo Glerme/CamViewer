@@ -84,7 +84,13 @@ PlasmoidItem {
 
         active: !root.inPanel && Plasmoid.configuration.pauseWhenCovered
         source: "WindowWatcher.qml"
-        onLoaded: item.screenGeometry = Qt.binding(() => Plasmoid.containment.screenGeometry)
+        onLoaded: item.screenGeometry = Qt.binding(() => {
+            // No login o containment ainda não tem tela, e ganhar uma não
+            // dispara screenGeometryChanged: sem reler aqui, o filtro por
+            // tela ficaria vazio e janelas de outro monitor pausariam o vídeo.
+            Plasmoid.containment.screen;
+            return Plasmoid.containment.screenGeometry;
+        })
     }
 
     compactRepresentation: MouseArea {
