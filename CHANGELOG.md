@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## v0.3.1 (2026-10-12)
+
+- Widget: janela maximizada em outro monitor não pausa mais o vídeo
+
 ## v0.3.0 (2026-10-12)
 
 - Aviso de atualização no app, changelog automático e correções do widget
