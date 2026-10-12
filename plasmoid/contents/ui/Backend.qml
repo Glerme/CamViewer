@@ -25,7 +25,8 @@ Item {
             "iface": service,
             "member": member,
             "arguments": args,
-            "signature": args.length > 0 ? "s".repeat(args.length) : null
+            // Todos os métodos que o widget chama recebem só textos.
+            "inSignature": args.length > 0 ? "s".repeat(args.length) : null
         };
         const reply = DBus.SessionBus.asyncCall(message);
         reply.finished.connect(() => {

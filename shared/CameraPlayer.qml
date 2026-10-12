@@ -98,6 +98,18 @@ Item {
                 }
             }
 
+            // Trocar de câmera reaproveita o player em vez de recriar tudo.
+            Connections {
+                target: root
+
+                function onSourceChanged() {
+                    player.stop();
+                    view.hasVideo = false;
+                    player.source = root.source;
+                    player.play();
+                }
+            }
+
             Connections {
                 target: output.videoSink
 

@@ -6,7 +6,7 @@
         "Description": "Câmera ao vivo na área de trabalho ou em um miniplayer no painel",
         "Icon": "camera-video",
         "Category": "Multimedia",
-        "Version": "0.2.0",
+        "Version": "0.3.0",
         "License": "GPL-3.0-or-later",
         "Authors": [
             {

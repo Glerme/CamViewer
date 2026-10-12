@@ -17,11 +17,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QUrl>
 #include <QUuid>
+#include <QVersionNumber>
 #include <QVideoFrame>
 #include <QVideoSink>
 
@@ -55,6 +58,7 @@ QVariantMap defaultSettings()
         {QStringLiteral("rtspTcp"), true},
         {QStringLiteral("lowLatency"), true},
         {QStringLiteral("pauseOnUnfocus"), false},
+        {QStringLiteral("checkUpdates"), true},
     };
 }
 
@@ -85,6 +89,17 @@ Manager::Manager(QObject *parent)
     load();
     applyEnvironment();
     syncDetectors();
+
+    // Logo depois de iniciar e uma vez por dia, para quem deixa o app aberto.
+    auto *updateTimer = new QTimer(this);
+    updateTimer->setInterval(24 * 60 * 60 * 1000);
+    connect(updateTimer, &QTimer::timeout, this, [this] {
+        checkForUpdates();
+    });
+    updateTimer->start();
+    QTimer::singleShot(15000, this, [this] {
+        checkForUpdates();
+    });
 }
 
 Manager::~Manager()
@@ -212,6 +227,106 @@ void Manager::setAutostart(bool enabled)
 }
 
 #endif
+
+QString Manager::version() const
+{
+    return QCoreApplication::applicationVersion();
+}
+
+void Manager::checkForUpdates(bool manual)
+{
+    if (!manual && !m_settings.value(QStringLiteral("checkUpdates")).toBool()) {
+        return;
+    }
+
+    // O CI publica este arquivo em cada release; "latest" aponta sempre para a
+    // mais recente. A variável de ambiente serve para testar com outro arquivo.
+    QUrl url(QStringLiteral("https://github.com/Glerme/CamViewer/releases/latest/download/latest.json"));
+    if (qEnvironmentVariableIsSet("CAMVIEWER_UPDATE_URL")) {
+        url = QUrl(qEnvironmentVariable("CAMVIEWER_UPDATE_URL"));
+    }
+
+    QNetworkRequest request(url);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(15000);
+    QNetworkReply *reply = m_network.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, manual] {
+        reply->deleteLater();
+        const QJsonObject latest = QJsonDocument::fromJson(reply->readAll()).object();
+        const QString latestVersion = latest.value(QLatin1String("version")).toString();
+        if (reply->error() != QNetworkReply::NoError || latestVersion.isEmpty()) {
+            if (manual) {
+                Q_EMIT updateCheckFinished(tr("Não foi possível verificar agora."));
+            }
+            return;
+        }
+
+        if (QVersionNumber::fromString(latestVersion) <= QVersionNumber::fromString(version())) {
+            if (!m_update.isEmpty()) {
+                m_update.clear();
+                Q_EMIT updateChanged();
+            }
+            if (manual) {
+                Q_EMIT updateCheckFinished(tr("Você já está na versão mais recente (%1).").arg(version()));
+            }
+            return;
+        }
+
+        const QString page = latest.value(QLatin1String("page")).toString();
+        QString download = page;
+#ifdef Q_OS_WIN
+        // No Windows dá para ir direto ao instalador; no Linux o pacote
+        // certo depende da distribuição, então abre a página da release.
+        const QString installer = latest.value(QLatin1String("downloads")).toObject()
+                                      .value(QLatin1String("windows")).toString();
+        if (!installer.isEmpty()) {
+            download = installer;
+        }
+#endif
+        m_update = {
+            {QStringLiteral("version"), latestVersion},
+            {QStringLiteral("notes"), latest.value(QLatin1String("notes")).toString()},
+            {QStringLiteral("page"), page},
+            {QStringLiteral("url"), download},
+        };
+        Q_EMIT updateChanged();
+        if (manual) {
+            Q_EMIT updateCheckFinished(tr("Versão %1 disponível.").arg(latestVersion));
+        }
+
+        // Um aviso por versão, não um a cada verificação.
+        if (m_notifiedVersion != latestVersion) {
+            m_notifiedVersion = latestVersion;
+            notifyUpdate();
+        }
+    });
+}
+
+void Manager::openUpdate()
+{
+    const QString url = m_update.value(QStringLiteral("url")).toString();
+    if (!url.isEmpty()) {
+        QDesktopServices::openUrl(QUrl(url));
+    }
+}
+
+void Manager::notifyUpdate()
+{
+    const QString title = tr("CamViewer %1 disponível").arg(m_update.value(QStringLiteral("version")).toString());
+    const QString text = m_update.value(QStringLiteral("notes")).toString();
+#ifdef CAMVIEWER_KDE
+    auto *notification = new KNotification(QStringLiteral("update"), KNotification::CloseOnTimeout);
+    notification->setComponentName(QStringLiteral("camviewer"));
+    notification->setTitle(title);
+    notification->setText(text);
+    notification->setIconName(QStringLiteral("camera-video"));
+    auto *download = notification->addDefaultAction(tr("Baixar"));
+    connect(download, &KNotificationAction::activated, this, &Manager::openUpdate);
+    notification->sendEvent();
+#else
+    Q_EMIT notificationRequested(title, text, {}, {});
+#endif
+}
 
 QString Manager::saveCamera(const QVariantMap &data)
 {

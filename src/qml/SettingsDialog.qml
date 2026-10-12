@@ -18,6 +18,8 @@ QQC2.Dialog {
         cooldownSpin.value = settings.alertCooldown;
         autoRecordSpin.value = settings.autoRecordSeconds;
         tcpBox.checked = settings.rtspTcp;
+        updatesBox.checked = settings.checkUpdates;
+        updateStatus.text = "";
         lowLatencyBox.checked = settings.lowLatency;
         unfocusBox.checked = settings.pauseOnUnfocus;
         autostartBox.checked = manager.autostart;
@@ -28,6 +30,7 @@ QQC2.Dialog {
         manager.setSetting("alertCooldown", cooldownSpin.value);
         manager.setSetting("autoRecordSeconds", autoRecordSpin.value);
         manager.setSetting("rtspTcp", tcpBox.checked);
+        manager.setSetting("checkUpdates", updatesBox.checked);
         manager.setSetting("lowLatency", lowLatencyBox.checked);
         manager.setSetting("pauseOnUnfocus", unfocusBox.checked);
         manager.autostart = autostartBox.checked;
@@ -114,6 +117,39 @@ QQC2.Dialog {
                 id: tcpBox
 
                 text: "Usar RTSP sobre TCP (evita imagem borrada em redes instáveis)"
+            }
+
+            QQC2.CheckBox {
+                id: updatesBox
+
+                Layout.topMargin: 8
+                text: "Avisar quando houver uma versão nova"
+            }
+            RowLayout {
+                QQC2.Label {
+                    text: "Versão instalada: " + manager.version
+                }
+                QQC2.Button {
+                    icon.name: "view-refresh"
+                    text: "Verificar agora"
+                    onClicked: {
+                        updateStatus.text = "Verificando…";
+                        manager.checkForUpdates(true);
+                    }
+                }
+                QQC2.Label {
+                    id: updateStatus
+
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                }
+            }
+            Connections {
+                target: manager
+
+                function onUpdateCheckFinished(message) {
+                    updateStatus.text = message;
+                }
             }
         }
     }

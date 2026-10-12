@@ -20,3 +20,8 @@ Action=Popup
 Name=Gravação
 Comment=Uma gravação terminou ou falhou
 Action=Popup
+
+[Event/update]
+Name=Nova versão
+Comment=Há uma versão mais nova do CamViewer
+Action=Popup

@@ -41,6 +41,15 @@ QQC2.ApplicationWindow {
                 Layout.fillWidth: true
             }
             QQC2.ToolButton {
+                visible: manager.update.version !== undefined
+                icon.name: "system-software-update"
+                text: "Atualizar para " + (manager.update.version ?? "")
+                highlighted: true
+                onClicked: manager.openUpdate()
+                QQC2.ToolTip.visible: hovered && (manager.update.notes ?? "") !== ""
+                QQC2.ToolTip.text: "O que mudou:\n" + (manager.update.notes ?? "")
+            }
+            QQC2.ToolButton {
                 icon.name: "folder-videos"
                 text: "Gravações"
                 onClicked: manager.openFolder("record")

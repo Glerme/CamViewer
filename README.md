@@ -39,12 +39,22 @@ knotifications kstatusnotifieritem qqc2-desktop-style cmake ffmpeg`.
 ### Publicar uma versão
 
 O GitHub Actions (`.github/workflows/build.yml`) compila tudo a cada push e
-guarda os instaladores como artefatos da execução. Uma tag `vX.Y.Z` também cria
-a release com eles:
+guarda os instaladores como artefatos da execução. Uma tag `vX.Y.Z` publica a
+release:
 
 ```sh
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.3.0 && git push origin v0.3.0
 ```
+
+A cada tag o CI também gera, com `packaging/release_files.py`:
+
+- **`latest.json`** (anexado à release) — versão, links dos instaladores e o que
+  mudou. É o arquivo que o app consulta, uma vez por dia, para avisar que há
+  versão nova; o aviso leva ao instalador (Windows) ou à página da release
+  (Linux). Dá para desligar ou verificar na hora em Configurações.
+- **`CHANGELOG.md`** (commitado em `main`) e o texto da release — uma linha por
+  commit desde a tag anterior, usando o título do commit. Commits que começam
+  com `CI:` ficam de fora.
 
 ## Como funciona
 

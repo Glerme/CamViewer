@@ -4,7 +4,7 @@
 #   cd packaging/arch && makepkg -si
 
 pkgname=camviewer
-pkgver=${CAMVIEWER_VERSION:-0.2.0}
+pkgver=${CAMVIEWER_VERSION:-0.3.0}
 pkgrel=1
 pkgdesc="Visualizador de câmeras IP para o KDE Plasma, com gravação, capturas e alertas"
 arch=('x86_64')

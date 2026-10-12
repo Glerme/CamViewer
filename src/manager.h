@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QNetworkAccessManager>
 #include <QObject>
 #include <QProcess>
 #include <QTimer>
@@ -26,6 +27,9 @@ class Manager : public QObject
     Q_PROPERTY(QVariantMap settings READ settings NOTIFY settingsChanged)
     Q_PROPERTY(bool anyRecording READ anyRecording NOTIFY runtimeChanged)
     Q_PROPERTY(bool autostart READ autostart WRITE setAutostart NOTIFY autostartChanged)
+    Q_PROPERTY(QString version READ version CONSTANT)
+    // Vazio enquanto não houver versão mais nova; senão version, notes, page e url.
+    Q_PROPERTY(QVariantMap update READ update NOTIFY updateChanged)
 
 public:
     explicit Manager(QObject *parent = nullptr);
@@ -38,6 +42,8 @@ public:
     // Iniciar em segundo plano no login (arquivo em ~/.config/autostart).
     bool autostart() const;
     void setAutostart(bool enabled);
+    QString version() const;
+    QVariantMap update() const { return m_update; }
 
     // id vazio cria uma câmera nova; devolve o id.
     Q_INVOKABLE QString saveCamera(const QVariantMap &camera);
@@ -46,6 +52,10 @@ public:
     // Captura instantânea a partir do quadro que já está na tela.
     Q_INVOKABLE bool snapshotFromSink(const QString &id, QObject *videoSink);
     Q_INVOKABLE void openFolder(const QString &kind);
+    // Consulta o latest.json da última release. `manual` responde sempre por
+    // updateCheckFinished, mesmo sem novidade.
+    Q_INVOKABLE void checkForUpdates(bool manual = false);
+    Q_INVOKABLE void openUpdate();
 
 public Q_SLOTS:
     Q_SCRIPTABLE QString State() const;
@@ -64,6 +74,8 @@ Q_SIGNALS:
     void runtimeChanged();
     void settingsChanged();
     void autostartChanged();
+    void updateChanged();
+    void updateCheckFinished(const QString &message);
     void ptzFailed(const QString &id, const QString &message);
     void showWindowRequested(const QString &id);
     // Só fora do KDE: quem tem a bandeja mostra o balão.
@@ -114,9 +126,13 @@ private:
 
     void notify(const QString &event, const QString &title, const QString &text,
                 const QString &file = {}, const QString &cameraId = {}, bool offerRecording = false);
+    void notifyUpdate();
     void emitRuntimeChanged();
 
     QList<Camera> m_cameras;
     OnvifPtz *m_ptz;
+    QNetworkAccessManager m_network;
+    QVariantMap m_update;
+    QString m_notifiedVersion;
     QVariantMap m_settings;
 };
