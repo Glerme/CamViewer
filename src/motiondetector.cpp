@@ -1,4 +1,5 @@
 #include "motiondetector.h"
+#include "ffmpeg.h"
 
 #include <cmath>
 
@@ -78,7 +79,7 @@ void MotionDetector::launch()
          << QStringLiteral("-vf")
          << QStringLiteral("fps=2,scale=320:-2,select='gte(scene,0)',metadata=print:file=-:direct=1")
          << QStringLiteral("-f") << QStringLiteral("null") << QStringLiteral("-");
-    m_process.start(QStringLiteral("ffmpeg"), args);
+    m_process.start(ffmpegProgram(), args);
 }
 
 void MotionDetector::readOutput()

@@ -1,0 +1,183 @@
+name: Build
+
+# Todo push compila os instaladores e os deixa como artefatos da execução.
+# Uma tag vX.Y.Z (só números) também publica uma release com eles:
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DEV_VERSION: 0.1.0
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=$DEV_VERSION" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.*'
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+          cache: true
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCAMVIEWER_VERSION=$env:VERSION"
+          cmake --build build
+
+      - name: Collect runtime files
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build\CamViewer.exe dist\
+          windeployqt --release --no-translations --no-compiler-runtime --qmldir src\qml --qmldir shared dist\CamViewer.exe
+          # Runtime do Visual C++ ao lado do app: dispensa instalar o vc_redist.
+          Copy-Item "$env:VCToolsRedistDir\x64\Microsoft.VC*.CRT\*.dll" dist\
+
+      - name: Bundle FFmpeg
+        run: |
+          # Gravação, capturas e detecção de movimento rodam o ffmpeg.exe.
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip"
+          Invoke-WebRequest $url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
+          New-Item -ItemType Directory -Force dist\ffmpeg | Out-Null
+          Copy-Item (Get-ChildItem ffmpeg-tmp -Recurse -Filter ffmpeg.exe | Select-Object -First 1).FullName dist\ffmpeg\
+          Copy-Item (Get-ChildItem ffmpeg-tmp -Recurse -Filter LICENSE.txt | Select-Object -First 1).FullName dist\ffmpeg\
+
+      - name: Smoke test
+        run: |
+          # Falha se faltar alguma DLL: o processo não chegaria a responder.
+          $version = (cmd /c "dist\CamViewer.exe --version 2>&1 | more")
+          Write-Host $version
+          & dist\ffmpeg\ffmpeg.exe -hide_banner -version | Select-Object -First 1
+
+      - name: Build installer
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
+          & $iscc "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\dist" packaging\windows\camviewer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist\* -DestinationPath "out\CamViewer-$env:VERSION-windows-x64-portable.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+          if-no-files-found: error
+
+  debian:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git cmake make g++ dpkg-dev file \
+            qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-svg-dev \
+            libkf6notifications-dev libkf6statusnotifieritem-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=$DEV_VERSION" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build package
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCAMVIEWER_VERSION="$VERSION"
+          cmake --build build -j"$(nproc)"
+          cd build && cpack -G DEB
+          mkdir ../out && mv ./*.deb ../out/
+
+      - name: Install test
+        run: |
+          # Confere que as dependências declaradas existem e que o app abre.
+          apt-get install -y --no-install-recommends ./out/*.deb
+          QT_QPA_PLATFORM=offscreen camviewer --version
+          test -f /usr/share/plasma/plasmoids/org.camviewer.plasmoid/contents/ui/CameraPlayer.qml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debian
+          path: out/*
+          if-no-files-found: error
+
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git cmake \
+            qt6-base qt6-declarative qt6-multimedia qt6-svg knotifications kstatusnotifieritem
+
+      - uses: actions/checkout@v4
+
+      - name: Version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=$DEV_VERSION" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build package
+        run: |
+          # O makepkg se recusa a rodar como root.
+          useradd -m builder
+          chown -R builder .
+          cd packaging/arch
+          # -d: as dependências só de execução não precisam estar no contêiner.
+          su builder -c "CAMVIEWER_VERSION=$VERSION makepkg -d --noconfirm"
+          mkdir ../../out && mv ./*.pkg.tar.zst ../../out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, debian, arch]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

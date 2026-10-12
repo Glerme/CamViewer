@@ -1,0 +1,1 @@
+export QT_FFMPEG_RTSP_TRANSPORT=tcp

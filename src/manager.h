@@ -61,6 +61,9 @@ Q_SIGNALS:
     void settingsChanged();
     void autostartChanged();
     void showWindowRequested(const QString &id);
+    // Só fora do KDE: quem tem a bandeja mostra o balão.
+    void notificationRequested(const QString &title, const QString &text,
+                               const QString &file, const QString &cameraId);
 
 private:
     struct Camera {

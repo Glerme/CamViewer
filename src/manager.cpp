@@ -1,7 +1,10 @@
 #include "manager.h"
+#include "ffmpeg.h"
 #include "motiondetector.h"
 
+#ifdef CAMVIEWER_KDE
 #include <KNotification>
+#endif
 
 #include <QCoreApplication>
 #include <QDesktopServices>
@@ -14,6 +17,7 @@
 #include <QJsonObject>
 #include <QLocale>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QUrl>
 #include <QUuid>
@@ -30,11 +34,13 @@ QString configPath()
         + QStringLiteral("/camviewer/config.json");
 }
 
+#ifndef Q_OS_WIN
 QString autostartPath()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
         + QStringLiteral("/autostart/org.camviewer.CamViewer.desktop");
 }
+#endif
 
 QVariantMap defaultSettings()
 {
@@ -130,6 +136,36 @@ bool Manager::anyRecording() const
     });
 }
 
+#ifdef Q_OS_WIN
+
+namespace {
+const QString RunKey = QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+const QString RunValue = QStringLiteral("CamViewer");
+}
+
+bool Manager::autostart() const
+{
+    return QSettings(RunKey, QSettings::NativeFormat).contains(RunValue);
+}
+
+void Manager::setAutostart(bool enabled)
+{
+    if (enabled == autostart()) {
+        return;
+    }
+
+    QSettings run(RunKey, QSettings::NativeFormat);
+    if (enabled) {
+        const QString program = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+        run.setValue(RunValue, QStringLiteral("\"%1\" --background").arg(program));
+    } else {
+        run.remove(RunValue);
+    }
+    Q_EMIT autostartChanged();
+}
+
+#else
+
 bool Manager::autostart() const
 {
     return QFile::exists(autostartPath());
@@ -164,6 +200,8 @@ void Manager::setAutostart(bool enabled)
     }
     Q_EMIT autostartChanged();
 }
+
+#endif
 
 QString Manager::saveCamera(const QVariantMap &data)
 {
@@ -489,7 +527,7 @@ void Manager::startRecording(Camera &camera, int autoStopSeconds)
     camera.recorder = recorder;
     camera.recordingSince = QDateTime::currentDateTime();
     camera.recordingFile = path;
-    recorder->start(QStringLiteral("ffmpeg"), args);
+    recorder->start(ffmpegProgram(), args);
 
     if (autoStopSeconds > 0) {
         camera.autoStop = new QTimer(this);
@@ -569,7 +607,7 @@ void Manager::grabSnapshot(const Camera &camera, const QString &path, std::funct
         }
     });
     QTimer::singleShot(15000, process, &QProcess::kill);
-    process->start(QStringLiteral("ffmpeg"), args);
+    process->start(ffmpegProgram(), args);
 }
 
 void Manager::onMotion(const QString &id)
@@ -608,6 +646,7 @@ void Manager::onMotion(const QString &id)
 void Manager::notify(const QString &event, const QString &title, const QString &text,
                      const QString &file, const QString &cameraId, bool offerRecording)
 {
+#ifdef CAMVIEWER_KDE
     auto *notification = new KNotification(event, KNotification::CloseOnTimeout);
     notification->setComponentName(QStringLiteral("camviewer"));
     notification->setTitle(title);
@@ -639,6 +678,11 @@ void Manager::notify(const QString &event, const QString &title, const QString &
     }
 
     notification->sendEvent();
+#else
+    Q_UNUSED(event)
+    Q_UNUSED(offerRecording)
+    Q_EMIT notificationRequested(title, text, file, cameraId);
+#endif
 }
 
 void Manager::emitRuntimeChanged()

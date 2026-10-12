@@ -8,8 +8,9 @@ CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 
 busctl --user call org.camviewer.CamViewer /CamViewer org.camviewer.CamViewer Quit 2>/dev/null
 
-kpackagetool6 --type Plasma/Applet --remove org.camviewer.plasmoid
+rm -rf "$PREFIX/share/plasma/plasmoids/org.camviewer.plasmoid"
 rm -f "$PREFIX/bin/camviewer" \
+      "$PREFIX/share/icons/hicolor/scalable/apps/camviewer.svg" \
       "$PREFIX/share/applications/org.camviewer.CamViewer.desktop" \
       "$PREFIX/share/dbus-1/services/org.camviewer.CamViewer.service" \
       "$PREFIX/share/knotifications6/camviewer.notifyrc" \

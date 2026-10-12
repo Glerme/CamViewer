@@ -1,0 +1,10 @@
+[Icon Theme]
+Name=camviewer
+Comment=Ícones usados quando o sistema não tem um tema de ícones
+Directories=scalable
+
+[scalable]
+Size=24
+MinSize=8
+MaxSize=512
+Type=Scalable

@@ -6,8 +6,26 @@ trabalho e para o painel.
 
 ## Instalar
 
-Dependências (Arch/CachyOS): `qt6-multimedia-ffmpeg qt6-declarative knotifications
-kstatusnotifieritem kirigami libplasma extra-cmake-modules cmake ffmpeg`.
+Os instaladores ficam na [página de releases](https://github.com/Glerme/CamViewer/releases):
+
+| Sistema | Arquivo | Como instalar |
+| --- | --- | --- |
+| Windows 10/11 | `CamViewer-X.Y.Z-windows-x64-setup.exe` | Executar; não pede administrador |
+| Windows (sem instalar) | `CamViewer-X.Y.Z-windows-x64-portable.zip` | Extrair e abrir `CamViewer.exe` |
+| Arch, CachyOS, Manjaro | `camviewer-X.Y.Z-1-x86_64.pkg.tar.zst` | `sudo pacman -U arquivo` |
+| Debian 13, Ubuntu 25.04+ | `camviewer_X.Y.Z_amd64.deb` | `sudo apt install ./arquivo` |
+
+No Windows o app é o mesmo, com bandeja, gravação, capturas e alertas, e já traz
+o FFmpeg. O widget existe só no Linux com KDE Plasma 6.
+
+Depois abra **CamViewer** no menu, adicione uma câmera (endereço `rtsp://…`,
+`http://…` ou qualquer coisa que o FFmpeg abra) e, no Plasma, adicione o widget
+**CamViewer** à área de trabalho ou ao painel.
+
+### A partir do código
+
+Dependências (Arch/CachyOS): `qt6-multimedia-ffmpeg qt6-declarative qt6-svg
+knotifications kstatusnotifieritem qqc2-desktop-style cmake ffmpeg`.
 
 ```sh
 ./install.sh              # instala em ~/.local, sem sudo
@@ -15,9 +33,18 @@ kstatusnotifieritem kirigami libplasma extra-cmake-modules cmake ffmpeg`.
 ./uninstall.sh
 ```
 
-Depois abra **CamViewer** no menu, adicione uma câmera (endereço `rtsp://…`,
-`http://…` ou qualquer coisa que o FFmpeg abra) e adicione o widget
-**CamViewer** à área de trabalho ou ao painel.
+`cmake -DCAMVIEWER_PORTABLE=ON` compila sem as bibliotecas do KDE e sem o widget
+(é o que o Windows usa).
+
+### Publicar uma versão
+
+O GitHub Actions (`.github/workflows/build.yml`) compila tudo a cada push e
+guarda os instaladores como artefatos da execução. Uma tag `vX.Y.Z` também cria
+a release com eles:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
 
 ## Como funciona
 

@@ -6,4 +6,24 @@
         <file alias="SettingsDialog.qml">qml/SettingsDialog.qml</file>
         <file alias="CameraPlayer.qml">../shared/CameraPlayer.qml</file>
     </qresource>
+    <qresource prefix="/">
+        <file>icons/camviewer.svg</file>
+        <file>icons/camviewer/index.theme</file>
+        <file>icons/camviewer/scalable/application-exit.svg</file>
+        <file>icons/camviewer/scalable/audio-volume-high.svg</file>
+        <file>icons/camviewer/scalable/audio-volume-muted.svg</file>
+        <file>icons/camviewer/scalable/camera-photo.svg</file>
+        <file>icons/camviewer/scalable/camera-video.svg</file>
+        <file>icons/camviewer/scalable/configure.svg</file>
+        <file>icons/camviewer/scalable/document-edit.svg</file>
+        <file>icons/camviewer/scalable/edit-delete.svg</file>
+        <file>icons/camviewer/scalable/folder-pictures.svg</file>
+        <file>icons/camviewer/scalable/folder-videos.svg</file>
+        <file>icons/camviewer/scalable/go-previous.svg</file>
+        <file>icons/camviewer/scalable/list-add.svg</file>
+        <file>icons/camviewer/scalable/media-playback-stop.svg</file>
+        <file>icons/camviewer/scalable/media-record.svg</file>
+        <file>icons/camviewer/scalable/view-fullscreen.svg</file>
+        <file>icons/camviewer/scalable/view-grid.svg</file>
+    </qresource>
 </RCC>

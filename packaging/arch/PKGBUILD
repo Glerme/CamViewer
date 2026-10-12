@@ -1,0 +1,37 @@
+# Pacote para Arch Linux e derivados (CachyOS, Manjaro, EndeavourOS).
+# Compila a partir desta cópia do código:
+#
+#   cd packaging/arch && makepkg -si
+
+pkgname=camviewer
+pkgver=${CAMVIEWER_VERSION:-0.1.0}
+pkgrel=1
+pkgdesc="Visualizador de câmeras IP para o KDE Plasma, com gravação, capturas e alertas"
+arch=('x86_64')
+url="https://github.com/Glerme/CamViewer"
+license=('GPL-3.0-or-later')
+depends=(
+    'ffmpeg'
+    'knotifications'
+    'kstatusnotifieritem'
+    'qqc2-desktop-style'
+    'qt6-base'
+    'qt6-declarative'
+    'qt6-multimedia'
+    'qt6-multimedia-ffmpeg'
+    'qt6-svg'
+)
+makedepends=('cmake')
+optdepends=('plasma-workspace: widget para a área de trabalho e o painel')
+
+build() {
+    cmake -S "$startdir/../.." -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCAMVIEWER_VERSION="$pkgver"
+    cmake --build build
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+}

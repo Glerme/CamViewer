@@ -1,11 +1,7 @@
 #include "manager.h"
 
-#include <KStatusNotifierItem>
-
 #include <QApplication>
 #include <QCommandLineParser>
-#include <QDBusConnection>
-#include <QDBusInterface>
 #include <QIcon>
 #include <QMenu>
 #include <QPointer>
@@ -14,9 +10,85 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 
+#ifdef CAMVIEWER_KDE
+#include <KStatusNotifierItem>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#else
+#include <QDesktopServices>
+#include <QDir>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QSystemTrayIcon>
+#include <QUrl>
+#endif
+
 namespace {
+
+#ifdef CAMVIEWER_KDE
+
 const QString Service = QStringLiteral("org.camviewer.CamViewer");
 const QString Path = QStringLiteral("/CamViewer");
+
+// Falso se já existe outra instância; nesse caso ela é avisada para mostrar
+// a janela (a não ser que esta tenha sido iniciada em segundo plano).
+bool claimSingleInstance(bool background)
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    if (bus.registerService(Service)) {
+        return true;
+    }
+    if (!background) {
+        QDBusInterface(Service, Path, Service, bus).call(QStringLiteral("ShowWindow"), QString());
+    }
+    return false;
+}
+
+void listenForRequests(Manager &manager)
+{
+    QDBusConnection::sessionBus().registerObject(Path, &manager, QDBusConnection::ExportScriptableContents);
+}
+
+#else
+
+QString socketName()
+{
+    return QStringLiteral("camviewer-") + QDir::home().dirName();
+}
+
+bool claimSingleInstance(bool background)
+{
+    QLocalSocket socket;
+    socket.connectToServer(socketName());
+    if (!socket.waitForConnected(500)) {
+        return true;
+    }
+    if (!background) {
+        socket.write("show\n");
+        socket.waitForBytesWritten(1000);
+    }
+    return false;
+}
+
+void listenForRequests(Manager &manager)
+{
+    // Um socket deixado por uma instância que travou impediria o listen().
+    QLocalServer::removeServer(socketName());
+    auto *server = new QLocalServer(&manager);
+    QObject::connect(server, &QLocalServer::newConnection, &manager, [server, &manager] {
+        QLocalSocket *client = server->nextPendingConnection();
+        QObject::connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
+        QObject::connect(client, &QLocalSocket::readyRead, &manager, [client, &manager] {
+            if (client->readAll().startsWith("show")) {
+                manager.ShowWindow({});
+            }
+        });
+    });
+    server->listen(socketName());
+}
+
+#endif
+
 }
 
 int main(int argc, char *argv[])
@@ -27,12 +99,20 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QStringLiteral(CAMVIEWER_VERSION));
     app.setOrganizationDomain(QStringLiteral("camviewer.org"));
     app.setDesktopFileName(QStringLiteral("org.camviewer.CamViewer"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("camera-video")));
     // O processo continua vivo sem janela para gravar e vigiar alertas.
     app.setQuitOnLastWindowClosed(false);
 
+    // Ícones embutidos para quando o sistema não tem tema de ícones.
+    QIcon::setFallbackThemeName(QStringLiteral("camviewer"));
+#ifdef CAMVIEWER_KDE
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("camera-video")));
+#else
+    QIcon::setThemeName(QStringLiteral("camviewer"));
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/camviewer.svg")));
+#endif
+
     QCommandLineParser parser;
-    parser.setApplicationDescription(QStringLiteral("Visualizador de câmeras IP para o KDE"));
+    parser.setApplicationDescription(QStringLiteral("Visualizador de câmeras IP"));
     parser.addHelpOption();
     parser.addVersionOption();
     const QCommandLineOption backgroundOption(QStringLiteral("background"),
@@ -41,21 +121,18 @@ int main(int argc, char *argv[])
     parser.process(app);
     const bool background = parser.isSet(backgroundOption);
 
-    QDBusConnection bus = QDBusConnection::sessionBus();
-    if (!bus.registerService(Service)) {
-        // Já existe uma instância: só pede para ela mostrar a janela.
-        if (!background) {
-            QDBusInterface(Service, Path, Service, bus).call(QStringLiteral("ShowWindow"), QString());
-        }
+    if (!claimSingleInstance(background)) {
         return 0;
     }
 
+    Manager manager;
+    listenForRequests(manager);
+
+#ifdef CAMVIEWER_KDE
     if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE")) {
         QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
     }
-
-    Manager manager;
-    bus.registerObject(Path, &manager, QDBusConnection::ExportScriptableContents);
+#endif
 
     // A interface inteira (motor QML e players) só existe enquanto a janela
     // está aberta; fechar a janela devolve toda essa memória.
@@ -85,26 +162,28 @@ int main(int argc, char *argv[])
     };
     QObject::connect(&manager, &Manager::showWindowRequested, &app, showWindow);
 
+    auto fillMenu = [&](QMenu *menu) {
+        menu->addAction(QIcon::fromTheme(QStringLiteral("camera-video")), QStringLiteral("Abrir CamViewer"), &app, [&] {
+            showWindow({});
+        });
+        menu->addAction(QIcon::fromTheme(QStringLiteral("folder-videos")), QStringLiteral("Gravações"), &manager, [&] {
+            manager.openFolder(QStringLiteral("record"));
+        });
+        menu->addAction(QIcon::fromTheme(QStringLiteral("folder-pictures")), QStringLiteral("Capturas"), &manager, [&] {
+            manager.openFolder(QStringLiteral("snapshot"));
+        });
+        menu->addSeparator();
+        menu->addAction(QIcon::fromTheme(QStringLiteral("application-exit")), QStringLiteral("Sair"), &app, &QApplication::quit);
+    };
+
+#ifdef CAMVIEWER_KDE
     KStatusNotifierItem tray;
     tray.setCategory(KStatusNotifierItem::ApplicationStatus);
     tray.setStatus(KStatusNotifierItem::Active);
     tray.setTitle(QStringLiteral("CamViewer"));
     tray.setIconByName(QStringLiteral("camera-video"));
     tray.setStandardActionsEnabled(false);
-
-    QMenu *menu = tray.contextMenu();
-    menu->addAction(QIcon::fromTheme(QStringLiteral("camera-video")), QStringLiteral("Abrir CamViewer"), &app, [&] {
-        showWindow({});
-    });
-    menu->addAction(QIcon::fromTheme(QStringLiteral("folder-videos")), QStringLiteral("Gravações"), &manager, [&] {
-        manager.openFolder(QStringLiteral("record"));
-    });
-    menu->addAction(QIcon::fromTheme(QStringLiteral("folder-pictures")), QStringLiteral("Capturas"), &manager, [&] {
-        manager.openFolder(QStringLiteral("snapshot"));
-    });
-    menu->addSeparator();
-    menu->addAction(QIcon::fromTheme(QStringLiteral("application-exit")), QStringLiteral("Sair"), &app, &QApplication::quit);
-
+    fillMenu(tray.contextMenu());
     QObject::connect(&tray, &KStatusNotifierItem::activateRequested, &app, [&] {
         showWindow({});
     });
@@ -115,6 +194,40 @@ int main(int argc, char *argv[])
         tray.setToolTip(QStringLiteral("camera-video"), QStringLiteral("CamViewer"),
                         recording ? QStringLiteral("Gravando") : QStringLiteral("Em segundo plano"));
     };
+#else
+    QMenu menu;
+    fillMenu(&menu);
+    QSystemTrayIcon tray(app.windowIcon());
+    tray.setContextMenu(&menu);
+    tray.show();
+    QObject::connect(&tray, &QSystemTrayIcon::activated, &app, [&](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
+            showWindow({});
+        }
+    });
+
+    // O balão do sistema não tem botões: clicar nele abre a câmera do alerta
+    // ou o arquivo que acabou de ser salvo.
+    QString clickCamera;
+    QString clickFile;
+    QObject::connect(&manager, &Manager::notificationRequested, &app,
+                     [&](const QString &title, const QString &text, const QString &file, const QString &cameraId) {
+        clickCamera = cameraId;
+        clickFile = file;
+        tray.showMessage(title, text, app.windowIcon());
+    });
+    QObject::connect(&tray, &QSystemTrayIcon::messageClicked, &app, [&] {
+        if (!clickCamera.isEmpty()) {
+            showWindow(clickCamera);
+        } else if (!clickFile.isEmpty()) {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(clickFile));
+        }
+    });
+
+    auto updateTray = [&] {
+        tray.setToolTip(manager.anyRecording() ? QStringLiteral("CamViewer — gravando") : QStringLiteral("CamViewer"));
+    };
+#endif
     QObject::connect(&manager, &Manager::runtimeChanged, &app, updateTray);
     updateTray();
 
